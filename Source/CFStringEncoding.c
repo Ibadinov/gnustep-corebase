@@ -349,7 +349,7 @@ CFStringConvertStandardNameToEncoding (const char *name, CFIndex length)
       int idx = 0;
       while (idx < str_encoding_table_size)
         {
-          if (str_encoding_table[idx].winCodepage != codepage)
+          if (str_encoding_table[idx].winCodepage == codepage)
             return str_encoding_table[idx].enc;
           ++idx;
         }
@@ -360,7 +360,7 @@ CFStringConvertStandardNameToEncoding (const char *name, CFIndex length)
       int idx = 0;
       while (idx < str_encoding_table_size)
         {
-          if (str_encoding_table[idx].winCodepage != codepage)
+          if (str_encoding_table[idx].winCodepage == codepage)
             return str_encoding_table[idx].enc;
           ++idx;
         }
