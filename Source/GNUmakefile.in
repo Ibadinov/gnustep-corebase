@@ -1,18 +1,19 @@
 include $(GNUSTEP_MAKEFILES)/common.make
 include ../Version
 
-PACKAGE_NAME = gnustep-corebase
+PACKAGE_NAME = CoreFoundation
 
-LIBRARY_NAME = libgnustep-corebase
+FRAMEWORK_NAME = CoreFoundation
 
 ADDITIONAL_INCLUDE_DIRS = -I../Headers
 ADDITIONAL_CFLAGS = -DBUILDING_SELF -DMAC_OS_X_VERSION_MAX_ALLOWED=100700
 ADDITIONAL_CXXFLAGS = -DBUILDING_SELF -DMAC_OS_X_VERSION_MAX_ALLOWED=100700
 ADDITIONAL_OBJCFLAGS = -DBUILDING_SELF -DMAC_OS_X_VERSION_MAX_ALLOWED=100700
+ADDITIONAL_LDFLAGS = -compatibility_version 150.0.0
 
-libgnustep-corebase_INTERFACE_VERSION = $(MAJOR_VERSION)
+CoreFoundation_INTERFACE_VERSION = $(MAJOR_VERSION)
 
-libgnustep-corebase_C_FILES = \
+CoreFoundation_C_FILES = \
   CFArray.c \
   CFAttributedString.c \
   CFBag.c \
@@ -49,7 +50,7 @@ libgnustep-corebase_C_FILES = \
   GSFunctions.c \
   GSHashTable.c
 
-libgnustep-corebase_HEADER_FILES = \
+CoreFoundation_HEADER_FILES = \
   CoreFoundation.h \
   CFArray.h \
   CFAttributedString.h \
@@ -85,7 +86,7 @@ libgnustep-corebase_HEADER_FILES = \
   CFXMLNode.h \
   CFXMLParser.h
 
-libgnustep-corebase_OBJC_FILES = \
+CoreFoundation_OBJC_FILES = \
   CFBundle.m \
   NSCFArray.m \
   NSCFData.m \
@@ -93,17 +94,16 @@ libgnustep-corebase_OBJC_FILES = \
   NSCFString.m \
   NSCFType.m
 
-libgnustep-corebase_LIBRARIES_DEPEND_UPON += @LIBS@
-libgnustep-corebase_HEADER_FILES_DIR = ../Headers/CoreFoundation
-libgnustep-corebase_HEADER_FILES_INSTALL_DIR = CoreFoundation
+CoreFoundation_LIBRARIES_DEPEND_UPON += @LIBS@
+CoreFoundation_HEADER_FILES_DIR = ../Headers/CoreFoundation
 
-libgnustep-corebase_NEEDS_GUI = NO
+CoreFoundation_NEEDS_GUI = NO
 
 ifeq ($(GNUSTEP_TARGET_OS), mingw32)
   ADDITIONAL_LDFLAGS = -L/mingw/bin
 endif
 
-include $(GNUSTEP_MAKEFILES)/library.make
+include $(GNUSTEP_MAKEFILES)/framework.make
 
 -include Makefile.postamble
 
