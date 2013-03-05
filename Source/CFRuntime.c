@@ -136,7 +136,49 @@ _CFRuntimeUnregisterClassWithTypeID (CFTypeID typeID)
   GSMutexUnlock (&_kCFRuntimeTableLock);
 }
 
+#ifdef __APPLE__
 
+#include <dlfcn.h>
+
+enum {
+    // retain/release recording constants -- must match values
+    // used by OA for now; probably will change in the future
+    __kCFRetainEvent = 28,
+    __kCFReleaseEvent = 29
+};
+
+bool __CFOASafe = false;
+
+void (*__CFObjectAllocRecordAllocationFunction)(int, void *, int64_t , uint64_t, const char *) = NULL;
+void (*__CFObjectAllocSetLastAllocEventNameFunction)(void *, const char *) = NULL;
+
+void __CFOAInitialize(void) {
+    static void (*dyfunc)(void) = (void *)~0;
+    if (NULL == getenv("OAKeepAllocationStatistics")) {
+        return;
+    }
+    if ((void *)~0 == dyfunc) {
+        dyfunc = dlsym(RTLD_DEFAULT, "_OAInitialize");
+    }
+    if (NULL != dyfunc) {
+        dyfunc();
+        __CFObjectAllocRecordAllocationFunction = dlsym(RTLD_DEFAULT, "_OARecordAllocationEvent");
+        __CFObjectAllocSetLastAllocEventNameFunction = dlsym(RTLD_DEFAULT, "_OASetLastAllocationEventName");
+        __CFOASafe = true;
+    }
+}
+
+void __CFRecordAllocationEvent(int eventnum, void *ptr, int64_t size, uint64_t data, const char *classname) {
+    if (!__CFOASafe || !__CFObjectAllocRecordAllocationFunction) return;
+    __CFObjectAllocRecordAllocationFunction(eventnum, ptr, size, data, classname);
+}
+
+void __CFSetLastAllocationEventName(void *ptr, const char *classname) {
+    if (!__CFOASafe || !__CFObjectAllocSetLastAllocEventNameFunction) return;
+    __CFObjectAllocSetLastAllocEventNameFunction(ptr, classname);
+}
+
+#endif
 
 CFTypeRef
 _CFRuntimeCreateInstance (CFAllocatorRef allocator, CFTypeID typeID,
@@ -160,13 +202,22 @@ _CFRuntimeCreateInstance (CFAllocatorRef allocator, CFTypeID typeID,
   if (new)
     {
       new = memset (new, 0, instSize);
+      cls = __CFRuntimeClassTable[typeID];
+        
+#ifdef __APPLE__
+        if (__CFOASafe && category) {
+            __CFSetLastAllocationEventName(new, (char *)category);
+        } else if (__CFOASafe) {
+            __CFSetLastAllocationEventName(new, (char *)cls->className);
+        }
+#endif
+        
       ((obj)new)->allocator = allocator;
       new = (CFRuntimeBase*)&((obj)new)[1];
       new->_isa =
         __CFRuntimeObjCClassTable ? __CFRuntimeObjCClassTable[typeID] : NULL;
       new->_typeID = typeID;
       
-      cls = __CFRuntimeClassTable[typeID];
       if (NULL != cls->init)
         {
           /* Init instance... */
@@ -345,6 +396,12 @@ CFRelease (CFTypeRef cf)
           GSRuntimeDeallocateInstance (cf);
         }
     }
+#ifdef __APPLE__
+    bool didAuto = false; /* not collectable */
+    if (!didAuto && __builtin_expect(__CFOASafe, 0)) {
+        __CFRecordAllocationEvent(__kCFReleaseEvent, (void *)cf, 0, 0, NULL);
+    }
+#endif
 }
 
 CFTypeRef
@@ -357,7 +414,12 @@ CFRetain (CFTypeRef cf)
       CFIndex result = GSAtomicIncrementCFIndex (&(((obj)cf)[-1].retained));
       assert (result < INT_MAX);
     }
-  
+#ifdef __APPLE__
+    bool didAuto = false; /* not collectable */
+    if (!didAuto && __builtin_expect(__CFOASafe, 0)) {
+        __CFRecordAllocationEvent(__kCFRetainEvent, (void *)cf, 0, 0, NULL);
+    }
+#endif
   return cf;
 }
 
@@ -499,6 +561,10 @@ void CFInitialize (void)
   CFURLInitialize ();
   CFUUIDInitialize ();
   CFXMLNodeInitialize ();
+    
+#ifdef __APPLE__
+  __CFOAInitialize();
+#endif
 }
 
 #if defined(_MSC_VER)
